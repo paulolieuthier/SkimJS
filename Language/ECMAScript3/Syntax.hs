@@ -49,26 +49,20 @@ import Data.Char
 import Control.Monad.State
 import Control.Arrow
 
-data JavaScript a
+data JavaScript
   -- |A script in \<script\> ... \</script\> tags.
-  = Script a [Statement a] 
-  deriving (Show,Data,Typeable,Eq,Ord,Functor,Foldable,Traversable)
-
-instance Default a => Default (JavaScript a) where
-  def = Script def []
+  = Script [Statement] 
+  deriving (Show,Data,Typeable,Eq,Ord)
 
 -- | extracts statements from a JavaScript type
-unJavaScript :: JavaScript a -> [Statement a]
-unJavaScript (Script _ stmts) = stmts
+unJavaScript :: JavaScript -> [Statement]
+unJavaScript (Script stmts) = stmts
 
-instance Default SourcePos where
-  def = initialPos ""
+data Id = Id String 
+    deriving (Show,Eq,Ord,Data,Typeable)
 
-data Id a = Id a String 
-          deriving (Show,Eq,Ord,Data,Typeable,Functor,Foldable,Traversable)
-
-unId :: Id a -> String
-unId (Id _ s) = s
+unId :: Id -> String
+unId (Id s) = s
 
 -- | Infix operators: see spec 11.5-11.11
 data InfixOp = OpLT -- ^ @<@
@@ -129,132 +123,132 @@ data PrefixOp = PrefixLNot -- ^ @!@
   deriving (Show,Data,Typeable,Eq,Ord)
 
 -- | Property names in an object initializer: see spec 11.1.5
-data Prop a = PropId a (Id a) -- ^ property name is an identifier, @foo@
-            | PropString a String -- ^ property name is a string, @\"foo\"@
-            | PropNum a Integer -- ^ property name is an integer, @42@
-  deriving (Show,Data,Typeable,Eq,Ord,Functor,Foldable,Traversable)
+data Prop = PropId Id -- ^ property name is an identifier, @foo@
+            | PropString String -- ^ property name is a string, @\"foo\"@
+            | PropNum Integer -- ^ property name is an integer, @42@
+  deriving (Show,Data,Typeable,Eq,Ord)
  
 -- | Left-hand side expressions: see spec 11.2
-data LValue a
-  = LVar a String -- ^ variable reference, @foo@
-  | LDot a (Expression a) String -- ^ @foo.bar@
-  | LBracket a (Expression a) (Expression a) -- ^ @foo[bar]@
-  deriving (Show, Eq, Ord, Data, Typeable, Functor,Foldable,Traversable) 
+data LValue
+  = LVar String -- ^ variable reference, @foo@
+  | LDot Expression String -- ^ @foo.bar@
+  | LBracket Expression Expression -- ^ @foo[bar]@
+  deriving (Show, Eq, Ord, Data, Typeable) 
 
 -- | Expressions, see spec 11
-data Expression a
-  = StringLit a String -- ^ @\"foo\"@, spec 11.1.3, 7.8
-  | RegexpLit a String Bool Bool 
+data Expression
+  = StringLit String -- ^ @\"foo\"@, spec 11.1.3, 7.8
+  | RegexpLit String Bool Bool 
     -- ^ @RegexpLit a regexp global?  case_insensitive?@ -- regular
     -- expression, see spec 11.1.3, 7.8
-  | NumLit a Double -- ^ @41.99999@, spec 11.1.3, 7.8
-  | IntLit a Int -- ^ @42@, spec 11.1.3, 7.8
-  | BoolLit a Bool -- ^ @true@, spec 11.1.3, 7.8
-  | NullLit a -- ^ @null@, spec 11.1.3, 7.8
-  | ArrayLit a [Expression a] -- ^ @[1,2,3]@, spec 11.1.4
-  | ObjectLit a [(Prop a, Expression a)] -- ^ @{foo:\"bar\", baz: 42}@, spec 11.1.5
-  | ThisRef a -- ^ @this@, spec 11.1.1
-  | VarRef a (Id a) -- ^ @foo@, spec 11.1.2
-  | DotRef a (Expression a) (Id a) -- ^ @foo.bar@, spec 11.2.1
-  | BracketRef a (Expression a) {- container -} (Expression a) {- key -} 
+  | NumLit Double -- ^ @41.99999@, spec 11.1.3, 7.8
+  | IntLit Int -- ^ @42@, spec 11.1.3, 7.8
+  | BoolLit Bool -- ^ @true@, spec 11.1.3, 7.8
+  | NullLit -- ^ @null@, spec 11.1.3, 7.8
+  | ArrayLit [Expression] -- ^ @[1,2,3]@, spec 11.1.4
+  | ObjectLit [(Prop, Expression)] -- ^ @{foo:\"bar\", baz: 42}@, spec 11.1.5
+  | ThisRef -- ^ @this@, spec 11.1.1
+  | VarRef Id -- ^ @foo@, spec 11.1.2
+  | DotRef Expression Id -- ^ @foo.bar@, spec 11.2.1
+  | BracketRef Expression {- container -} Expression {- key -} 
     -- ^ @foo[bar@, spec 11.2.1
-  | NewExpr a (Expression a) {- constructor -} [Expression a] 
+  | NewExpr Expression {- constructor -} [Expression] 
     -- ^ @new foo(bar)@, spec 11.2.2
-  | PrefixExpr a PrefixOp (Expression a) 
+  | PrefixExpr PrefixOp Expression 
     -- ^ @\@e@, spec 11.4 (excluding 11.4.4, 111.4.5)
-  | UnaryAssignExpr a UnaryAssignOp (LValue a) 
+  | UnaryAssignExpr UnaryAssignOp LValue 
     -- ^ @++x@, @x--@ etc., spec 11.3, 11.4.4, 11.4.5
-  | InfixExpr a InfixOp (Expression a) (Expression a) 
+  | InfixExpr InfixOp Expression Expression 
     -- ^ @e1\@e2@, spec 11.5, 11.6, 11.7, 11.8, 11.9, 11.10, 11.11
-  | CondExpr a (Expression a) (Expression a) (Expression a)
+  | CondExpr Expression Expression Expression
     -- ^ @e1 ? e2 : e3@, spec 11.12
-  | AssignExpr a AssignOp (LValue a) (Expression a)
+  | AssignExpr AssignOp LValue Expression
     -- ^ @e1 \@=e2@, spec 11.13
-  | ListExpr a [Expression a] -- ^ @e1, e2@, spec 11.14
-  | CallExpr a (Expression a) [Expression a] -- ^ @f(x,y,z)@, spec 11.2.3
+  | ListExpr [Expression] -- ^ @e1, e2@, spec 11.14
+  | CallExpr Expression [Expression] -- ^ @f(x,y,z)@, spec 11.2.3
   --funcexprs are optionally named
-  | FuncExpr a (Maybe (Id a)) [Id a] [Statement a]
+  | FuncExpr (Maybe Id) [Id] [Statement]
     -- ^ @function f (x,y,z) {...}@, spec 11.2.5, 13
-  deriving (Show,Data,Typeable,Eq,Ord,Functor,Foldable,Traversable)
+  deriving (Show,Data,Typeable,Eq,Ord)
 
 -- | Case clauses, spec 12.11
-data CaseClause a = CaseClause a (Expression a) [Statement a]
+data CaseClause = CaseClause (Expression) [Statement]
                     -- ^ @case e: stmts;@
-                  | CaseDefault a [Statement a]
+                  | CaseDefault [Statement]
                     -- ^ @default: stmts;@
-  deriving (Show,Data,Typeable,Eq,Ord,Functor,Foldable,Traversable)
+  deriving (Show,Data,Typeable,Eq,Ord)
 
 -- | Catch clause, spec 12.14
-data CatchClause a = CatchClause a (Id a) (Statement a) 
+data CatchClause = CatchClause Id Statement 
                      -- ^ @catch (x) {...}@
-  deriving (Show,Data,Typeable,Eq,Ord,Functor,Foldable,Traversable)
+  deriving (Show,Data,Typeable,Eq,Ord)
 
 -- | A variable declaration, spec 12.2
-data VarDecl a = VarDecl a (Id a) (Maybe (Expression a)) 
+data VarDecl = VarDecl Id (Maybe Expression) 
                  -- ^ @var x = e;@
-  deriving (Show,Data,Typeable,Eq,Ord,Functor,Foldable,Traversable)
+  deriving (Show,Data,Typeable,Eq,Ord)
   
 -- | for initializer, spec 12.6
-data ForInit a = NoInit -- ^ empty
-               | VarInit [VarDecl a] -- ^ @var x, y=42@
-               | ExprInit (Expression a) -- ^ @expr@
-  deriving (Show,Data,Typeable,Eq,Ord,Functor,Foldable,Traversable)
+data ForInit = NoInit -- ^ empty
+               | VarInit [VarDecl] -- ^ @var x, y=42@
+               | ExprInit Expression -- ^ @expr@
+  deriving (Show,Data,Typeable,Eq,Ord)
 
 -- | for..in initializer, spec 12.6
-data ForInInit a = ForInVar (Id a) -- ^ @var x@
-                 | ForInLVal (LValue a) -- ^ @foo.baz@, @foo[bar]@, @z@
- deriving (Show,Data,Typeable,Eq,Ord,Functor,Foldable,Traversable)
+data ForInInit = ForInVar Id -- ^ @var x@
+                 | ForInLVal LValue -- ^ @foo.baz@, @foo[bar]@, @z@
+ deriving (Show,Data,Typeable,Eq,Ord)
   
 -- | Statements, spec 12.
-data Statement a 
-  = BlockStmt a [Statement a] -- ^ @{stmts}@, spec 12.1
-  | EmptyStmt a -- ^ @;@, spec 12.3
-  | ExprStmt a (Expression a) -- ^ @expr;@, spec 12.4
-  | IfStmt a (Expression a) (Statement a) (Statement a) 
+data Statement 
+  = BlockStmt [Statement] -- ^ @{stmts}@, spec 12.1
+  | EmptyStmt -- ^ @;@, spec 12.3
+  | ExprStmt Expression -- ^ @expr;@, spec 12.4
+  | IfStmt Expression Statement Statement 
     -- ^ @if (e) stmt@, spec 12.5
-  | IfSingleStmt a (Expression a) (Statement a)
+  | IfSingleStmt Expression Statement
     -- ^ @if (e) stmt1 else stmt2@, spec 12.5
-  | SwitchStmt a (Expression a) [CaseClause a]
+  | SwitchStmt Expression [CaseClause]
     -- ^ @switch (e) clauses@, spec 12.11
-  | WhileStmt a (Expression a) (Statement a)
+  | WhileStmt Expression Statement
     -- ^ @while (e) do stmt@, spec 12.6
-  | DoWhileStmt a (Statement a) (Expression a)
+  | DoWhileStmt Statement Expression
     -- ^ @do stmt while (e);@, spec 12.6
-  | BreakStmt a (Maybe (Id a)) -- ^ @break lab;@, spec 12.8
-  | ContinueStmt a (Maybe (Id a)) -- ^ @continue lab;@, spec 12.7
-  | LabelledStmt a (Id a) (Statement a) -- ^ @lab: stmt@, spec 12.12
-  | ForInStmt a (ForInInit a) (Expression a) (Statement a) 
+  | BreakStmt (Maybe Id) -- ^ @break lab;@, spec 12.8
+  | ContinueStmt (Maybe Id) -- ^ @continue lab;@, spec 12.7
+  | LabelledStmt Id Statement -- ^ @lab: stmt@, spec 12.12
+  | ForInStmt ForInInit Expression Statement 
     -- ^ @for (x in o) stmt@, spec 12.6
-  | ForStmt a (ForInit a)        
-              (Maybe (Expression a)) -- test
-              (Maybe (Expression a)) -- increment
-              (Statement a)          -- body 
+  | ForStmt ForInit        
+            (Maybe Expression) -- test
+            (Maybe Expression) -- increment
+            Statement          -- body 
     -- ^ @ForStmt a init test increment body@, @for (init; test,
     -- increment) body@, spec 12.6
-  | TryStmt a (Statement a) {-body-} (Maybe (CatchClause a))
-      (Maybe (Statement a)) {-finally-}
+  | TryStmt Statement {-body-} (Maybe CatchClause)
+      (Maybe Statement) {-finally-}
     -- ^ @try stmt catch(x) stmt finally stmt@, spec 12.14
-  | ThrowStmt a (Expression a)
+  | ThrowStmt Expression
     -- ^ @throw expr;@, spec 12.13
-  | ReturnStmt a (Maybe (Expression a))
+  | ReturnStmt (Maybe Expression)
     -- ^ @return expr;@, spec 12.9
-  | WithStmt a (Expression a) (Statement a)
+  | WithStmt Expression Statement
     -- ^ @with (o) stmt@, spec 12.10
-  | VarDeclStmt a [VarDecl a]
+  | VarDeclStmt [VarDecl]
     -- ^ @var x, y=42;@, spec 12.2
-  | FunctionStmt a (Id a) {-name-} [Id a] {-args-} [Statement a] {-body-}
+  | FunctionStmt Id {-name-} [Id] {-args-} [Statement] {-body-}
     -- ^ @function f(x, y, z) {...}@, spec 13
-  deriving (Show,Data,Typeable,Eq,Ord,Functor,Foldable,Traversable)  
+  deriving (Show,Data,Typeable,Eq,Ord)  
 
 -- | Returns 'True' if the statement is an /IterationStatement/
 -- according to spec 12.6.
-isIterationStmt :: Statement a -> Bool
+isIterationStmt :: Statement -> Bool
 isIterationStmt s = case s of
-  WhileStmt {}   -> True
+  WhileStmt {} -> True
   DoWhileStmt {} -> True
   ForStmt {} -> True
   ForInStmt {} -> True
-  _                 -> False
+  _ -> False
   
 -- | The ECMAScript standard defines certain syntactic restrictions on
 -- programs (or, more precisely, statements) that aren't easily
@@ -264,7 +258,7 @@ isIterationStmt s = case s of
 -- that correspond to syntactically incorrect programs. Use this
 -- predicate to check if an 'JavaScript' AST corresponds to a
 -- syntactically correct ECMAScript program.
-isValid :: forall a. (Data a, Typeable a) => JavaScript a -> Bool
+isValid :: JavaScript -> Bool
 -- =From ECMA-262-3=
 -- A program is considered syntactically incorrect if either of the
 -- following is true:
@@ -288,48 +282,48 @@ isValid :: forall a. (Data a, Typeable a) => JavaScript a -> Bool
 -- statement.
 -- * The identifiers should be valid. See spec 7.6
 isValid js = checkIdentifiers js && checkBreakContinueLabels js
-  where checkIdentifiers :: (Data a, Typeable a) => JavaScript a -> Bool
+  where checkIdentifiers :: JavaScript -> Bool
         checkIdentifiers js =
           and $ map isValidIdentifierName $
-          [n | (Id _ n) :: Id a <- universeBi js] ++
-          [n | (LVar _ n) :: LValue a <- universeBi js] ++
-          [n | (LDot _ _ n) :: LValue a <- universeBi js]
-        checkBreakContinueLabels js@(Script _ body) = and $ map checkStmt $
-           body ++ concat ([body | FuncExpr _ _ _ body <- universeBi js] ++
-                           [body | FunctionStmt _ _ _ body <- universeBi js])
+          [n | (Id n) :: Id <- universeBi js] ++
+          [n | (LVar n) :: LValue <- universeBi js] ++
+          [n | (LDot _ n) :: LValue <- universeBi js]
+        checkBreakContinueLabels js@(Script body) = and $ map checkStmt $
+           body ++ concat ([body | FuncExpr _ _ body <- universeBi js] ++
+                           [body | FunctionStmt _ _ body <- universeBi js])
 
-checkStmt :: Statement a -> Bool
+checkStmt :: Statement -> Bool
 checkStmt s = evalState (checkStmtM s) ([], [])
 
-checkStmtM :: Statement a -> State ([Label], [EnclosingStatement]) Bool
+checkStmtM :: Statement -> State ([Label], [EnclosingStatement]) Bool
 checkStmtM stmt = case stmt of
-  ContinueStmt a mlab -> do
+  ContinueStmt mlab -> do
     encls <- gets snd
     let enIts = filter isIter encls
     return $ case mlab of
       Nothing  -> not $ null enIts
       Just lab -> any (elem (unId lab) . getLabelSet) enIts
-  BreakStmt a mlab -> do
+  BreakStmt mlab -> do
     encls <- gets snd
     return $ case mlab of
       Nothing  -> any isIterSwitch encls
       Just lab -> any (elem (unId lab) . getLabelSet) encls
-  LabelledStmt _ lab s -> do
+  LabelledStmt lab s -> do
     labs <- gets fst
     if (unId lab) `elem` labs then return False
       else pushLabel lab $ checkStmtM s
-  WhileStmt _ _ s   -> iterCommon s
-  DoWhileStmt _ s _ -> iterCommon s
-  ForStmt _ _ _ _ s -> iterCommon s
-  ForInStmt _ _ _ s -> iterCommon s
-  SwitchStmt _ _ cs -> pushEnclosing EnclosingSwitch $ liftM and $ mapM checkCaseM cs
-  BlockStmt _ ss -> pushEnclosing EnclosingOther $ liftM and $ mapM checkStmtM ss
-  IfStmt _ _ t e -> liftM2 (&&) (checkStmtM t) (checkStmtM e)
-  IfSingleStmt _ _ t -> checkStmtM t
-  TryStmt _ body mcatch mfinally -> liftM2 (&&) (checkStmtM body) $
+  WhileStmt _ s   -> iterCommon s
+  DoWhileStmt s _ -> iterCommon s
+  ForStmt _ _ _ s -> iterCommon s
+  ForInStmt _ _ s -> iterCommon s
+  SwitchStmt _ cs -> pushEnclosing EnclosingSwitch $ liftM and $ mapM checkCaseM cs
+  BlockStmt ss -> pushEnclosing EnclosingOther $ liftM and $ mapM checkStmtM ss
+  IfStmt _ t e -> liftM2 (&&) (checkStmtM t) (checkStmtM e)
+  IfSingleStmt _ t -> checkStmtM t
+  TryStmt body mcatch mfinally -> liftM2 (&&) (checkStmtM body) $
     liftM2 (&&) (maybe (return True) checkCatchM mcatch)
                 (maybe (return True) checkStmtM mfinally)
-  WithStmt _ _ body -> checkStmtM body
+  WithStmt _ body -> checkStmtM body
   _ -> return True
 
 iterCommon s = pushEnclosing EnclosingIter $ checkStmtM s
@@ -339,16 +333,16 @@ pushEnclosing :: Monad m => ([Label] -> EnclosingStatement)
               -> StateT ([Label], [EnclosingStatement]) m a
 pushEnclosing ctor = bracketState (\(labs, encls) -> ([], ctor labs:encls))
 
-pushLabel :: Monad m => Id b -> StateT ([Label], [EnclosingStatement]) m a
+pushLabel :: Monad m => Id -> StateT ([Label], [EnclosingStatement]) m a
           -> StateT ([Label], [EnclosingStatement]) m a
 pushLabel l = bracketState (first (unId l:))
 
 checkCaseM c = let ss = case c of
-                     CaseClause _ _ body -> body
-                     CaseDefault _ body -> body
+                     CaseClause _ body -> body
+                     CaseDefault body -> body
                in liftM and $ mapM checkStmtM ss
 
-checkCatchM (CatchClause _ _ body) = checkStmtM body
+checkCatchM (CatchClause _ body) = checkStmtM body
 
 bracketState :: Monad m => (s -> s) -> StateT s m a -> StateT s m a
 bracketState f m = do original <- get
@@ -358,8 +352,8 @@ bracketState f m = do original <- get
                       return rv
 
 -- | Checks if an identifier name is valid according to the spec
-isValidIdentifier :: Id a -> Bool
-isValidIdentifier (Id _ name) = isValidIdentifierName name
+isValidIdentifier :: Id -> Bool
+isValidIdentifier (Id name) = isValidIdentifierName name
 
 -- | Checks if the 'String' represents a valid identifier name
 isValidIdentifierName :: String -> Bool
