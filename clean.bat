@@ -1,3 +1,3 @@
 
 @RD /S /Q build
-@DEL Main.exe
+@DEL Main.exe PLC\fnv.o
