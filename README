@@ -1,6 +1,0 @@
-
-# LINUX
-ghc main.hs  -optP-include -optP./cabal_macros.h fnv-unix.o
-
-# WINDOWS
-ghc main.hs  -optP-include -optP./cabal_macros.h fnv-windows.o
