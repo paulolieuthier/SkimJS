@@ -1,4 +1,2 @@
-function fun() {
-    var x = 1;
-    return x + 1;
-}
+var x = 0, y = 10;
+x + y;
