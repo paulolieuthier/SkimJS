@@ -1,6 +1,7 @@
 import qualified Language.ECMAScript3.Parser as Parser
 import Language.ECMAScript3.Syntax
 import Control.Monad hiding (empty)
+import Control.Applicative hiding (empty)
 import Data.Map as Map
 import Debug.Trace
 import Value
