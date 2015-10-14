@@ -8,9 +8,9 @@ First, open your favorite console application and navigate to the project direct
 
 #### Windows
 
-* Run the `build.bat` file to compile the project
-* Run `Main.exe` to execute the interpreter
-* Run the `clean.bat` file to remove the build files
+* Run `build` file to compile the project
+* Run `Main` to execute the interpreter
+* Run `clean` file to remove the build files
 
 #### Linux and OS X
 
