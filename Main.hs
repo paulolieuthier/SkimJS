@@ -2,7 +2,7 @@ import qualified Language.ECMAScript3.Parser as Parser
 import Language.ECMAScript3.Syntax
 import Control.Monad hiding (empty)
 import Control.Applicative hiding (empty)
-import Data.Map as Map
+import Data.Map as Map (Map, insert, lookup, union, toList, empty)
 import Debug.Trace
 import Value
 
@@ -13,6 +13,7 @@ import Value
 evalExpr :: StateT -> Expression -> StateTransformer Value
 evalExpr env (VarRef (Id id)) = stateLookup env id
 evalExpr env (IntLit int) = return $ Int int
+evalExpr env (BoolLit bool) = return $ Bool bool
 evalExpr env (InfixExpr op expr1 expr2) = do
     v1 <- evalExpr env expr1
     v2 <- evalExpr env expr2
@@ -37,8 +38,7 @@ evalStmt env (ExprStmt expr) = evalExpr env expr
 -- Do not touch this one :)
 evaluate :: StateT -> [Statement] -> StateTransformer Value
 evaluate env [] = return Nil
-evaluate env [stmt] = evalStmt env stmt
-evaluate env (s:ss) = evalStmt env s >> evaluate env ss
+evaluate env stmts = foldl1 (>>) $ map (evalStmt env) stmts
 
 --
 -- Operators
@@ -55,21 +55,10 @@ infixOp env OpLEq  (Int  v1) (Int  v2) = return $ Bool $ v1 <= v2
 infixOp env OpGT   (Int  v1) (Int  v2) = return $ Bool $ v1 > v2
 infixOp env OpGEq  (Int  v1) (Int  v2) = return $ Bool $ v1 >= v2
 infixOp env OpEq   (Int  v1) (Int  v2) = return $ Bool $ v1 == v2
+infixOp env OpEq   (Bool v1) (Bool v2) = return $ Bool $ v1 == v2
 infixOp env OpNEq  (Bool v1) (Bool v2) = return $ Bool $ v1 /= v2
 infixOp env OpLAnd (Bool v1) (Bool v2) = return $ Bool $ v1 && v2
 infixOp env OpLOr  (Bool v1) (Bool v2) = return $ Bool $ v1 || v2
-
-infixOp env op (Var x) v2 = do
-    var <- stateLookup env x
-    case var of
-        error@(Error _) -> return error
-        val -> infixOp env op val v2
-
-infixOp env op v1 (Var x) = do
-    var <- stateLookup env x
-    case var of
-        error@(Error _) -> return error
-        val -> infixOp env op v1 val
 
 --
 -- Environment and auxiliary functions
@@ -123,7 +112,8 @@ instance Applicative StateTransformer where
 --
 
 showResult :: (Value, StateT) -> String
-showResult (val, defs) = show val ++ "\n" ++ show (toList defs) ++ "\n"
+showResult (val, defs) =
+    show val ++ "\n" ++ show (toList $ union defs environment) ++ "\n"
 
 getResult :: StateTransformer Value -> (Value, StateT)
 getResult (ST f) = f empty

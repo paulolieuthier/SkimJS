@@ -18,7 +18,7 @@ instance Show Value where
   show (String str) = "\"" ++ str ++ "\""
   show (Var name) = name
   show (Error str) = "Error: " ++ str
-  show Nil = ""
+  show Nil = "undefined"
   
 -- This function could be replaced by (unwords.map show). The unwords
 -- function takes a list of String values and uses them to build a 
@@ -26,4 +26,4 @@ instance Show Value where
 showListContents :: [Value] -> String
 showListContents [] = ""
 showListContents [a] = show a
-showListContents (a:as) = show a ++ " " ++ (showListContents as)
+showListContents (a:as) = show a ++ ", " ++ (showListContents as)
