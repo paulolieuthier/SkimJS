@@ -19,14 +19,9 @@ evalExpr env (InfixExpr op expr1 expr2) = do
     v2 <- evalExpr env expr2
     infixOp env op v1 v2
 evalExpr env (AssignExpr OpAssign (LVar var) expr) = do
-    v <- stateLookup env var
-    case v of
-        -- Variable not defined :(
-        (Error _) -> return $ Error $ (show var) ++ " not defined"
-        -- Variable defined, let's set its value
-        _ -> do
-            e <- evalExpr env expr
-            setVar var e
+    stateLookup env var -- crashes if the variable doesn't exist
+    e <- evalExpr env expr
+    setVar var e
 
 evalStmt :: StateT -> Statement -> StateTransformer Value
 evalStmt env EmptyStmt = return Nil
@@ -69,11 +64,10 @@ environment = empty
 
 stateLookup :: StateT -> String -> StateTransformer Value
 stateLookup env var = ST $ \s ->
-    (maybe
-        (Error $ "Variable " ++ show var ++ " not defined")
-        id
-        (Map.lookup var (union s env)),
-    s)
+    -- this way the error won't be skipped by lazy evaluation
+    case Map.lookup var (union s env) of
+        Nothing -> error $ "Variable " ++ show var ++ " not defiend."
+        Just val -> (val, s)
 
 varDecl :: StateT -> VarDecl -> StateTransformer Value
 varDecl env (VarDecl (Id id) maybeExpr) = do
