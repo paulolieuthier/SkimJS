@@ -1,7 +1,7 @@
 import qualified Language.ECMAScript3.Parser as Parser
 import Language.ECMAScript3.Syntax
-import Control.Monad hiding (empty)
-import Control.Applicative hiding (empty)
+import Control.Monad
+import Control.Applicative
 import Data.Map as Map (Map, insert, lookup, union, toList, empty)
 import Debug.Trace
 import Value
@@ -60,7 +60,7 @@ infixOp env OpLOr  (Bool v1) (Bool v2) = return $ Bool $ v1 || v2
 --
 
 environment :: Map String Value
-environment = empty
+environment = Map.empty
 
 stateLookup :: StateT -> String -> StateTransformer Value
 stateLookup env var = ST $ \s ->
@@ -110,7 +110,7 @@ showResult (val, defs) =
     show val ++ "\n" ++ show (toList $ union defs environment) ++ "\n"
 
 getResult :: StateTransformer Value -> (Value, StateT)
-getResult (ST f) = f empty
+getResult (ST f) = f Map.empty
 
 main :: IO ()
 main = do
