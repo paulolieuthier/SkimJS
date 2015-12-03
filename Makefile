@@ -6,8 +6,8 @@ INCLUDES = -optP-include -optPPLC/definitions.h
 
 all:
 	mkdir -p build
-	ghc -c PLC/fnv.c -o PLC/fnv.o
-	ghc -c PLC/text_cbits.c -o PLC/text.o
+	ghc -fPIC -c PLC/fnv.c -o PLC/fnv.o
+	ghc -fPIC -c PLC/text_cbits.c -o PLC/text.o
 	ghc Main.hs -outputdir build $(OBJECTS) $(EXTENSIONS) $(INCLUDES)
 
 run:
