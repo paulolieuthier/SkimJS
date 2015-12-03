@@ -14,4 +14,4 @@ run:
 	./Main
 
 clean:
-	rm -rf build Main PLC/fnv.o
+	rm -rf build Main PLC/fnv.o PLC/text.o
